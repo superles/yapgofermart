@@ -14,7 +14,7 @@ func parseFlags() Config {
 	flag.StringVar(&config.AccrualSystemAddress, "r", "", "адрес системы расчёта начислений")
 	//example: postgresql://test_user:test_user@localhost/test_db
 	flag.StringVar(&config.DatabaseDsn, "d", "", "строка подключения к базе данных в формате dsn")
-	//todo для отладки, убрать. Небезопасно передавать ключ в строке запуска и держать значение по умолчанию
+	//Todo для отладки, убрать. Небезопасно передавать ключ в строке запуска и держать значение по умолчанию
 	flag.StringVar(&config.SecretKey, "s", "secretKey", "секретный ключ для авторизации")
 
 	var Usage = func() {
