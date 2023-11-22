@@ -6,6 +6,6 @@ import (
 )
 
 type BalanceStorage interface {
-	GetAllBalancesByUserId(ctx context.Context, id int64) ([]model.Balance, error)
+	GetAllBalancesByUserID(ctx context.Context, id int64) ([]model.Balance, error)
 	AddBalance(ctx context.Context, balance model.Balance) error
 }

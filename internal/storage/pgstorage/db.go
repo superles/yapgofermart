@@ -81,7 +81,7 @@ func checkTables(ctx context.Context, db *pgxpool.Pool) {
     user_id          integer                                not null
 );`)
 
-	db.QueryRow(ctx, `create or replace function check_and_insert_order(inputNumber varchar(255), inputStatus varchar(50), inputUserId int) returns integer
+	db.QueryRow(ctx, `create or replace function check_and_insert_order(inputNumber varchar(255), inputStatus varchar(50), inputUserID int) returns integer
     language plpgsql
 as
 $$
@@ -89,14 +89,14 @@ DECLARE
     resultCode INT;
 BEGIN
     IF EXISTS (SELECT 1 FROM orders WHERE number = inputNumber) THEN
-        IF EXISTS (SELECT 1 FROM orders WHERE number = inputNumber AND user_id = inputUserId) THEN
+        IF EXISTS (SELECT 1 FROM orders WHERE number = inputNumber AND user_id = inputUserID) THEN
             resultCode := 1; -- Если существует и пользователь совпадает
         ELSE
             resultCode := 2; -- Если существует и пользователь не совпадает
         END IF;
     ELSE
         INSERT INTO orders (number, status, user_id)
-        VALUES (inputNumber, inputStatus, inputUserId);
+        VALUES (inputNumber, inputStatus, inputUserID);
         resultCode := 3; -- Если запись добавлена
     END IF;
 

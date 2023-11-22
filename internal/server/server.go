@@ -90,7 +90,7 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 	}()
 
-	service := accrual.Service{Client: accrual.Client{BaseUrl: s.cfg.AccrualSystemAddress}, Storage: s.storage}
+	service := accrual.Service{Client: accrual.Client{BaseURL: s.cfg.AccrualSystemAddress}, Storage: s.storage}
 
 	go service.Run(ctx, 5*time.Second)
 

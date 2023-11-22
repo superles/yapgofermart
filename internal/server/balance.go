@@ -21,23 +21,23 @@ type balanceWithdrawRequest struct {
 }
 
 func (s *Server) getUserBalanceHandler(ctx *fasthttp.RequestCtx) {
-	userId, ok := ctx.UserValue("userId").(int64)
+	userID, ok := ctx.UserValue("userID").(int64)
 	if !ok {
 		logger.Log.Errorf("ошибка получения пользователя из контекста")
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
 		return
 	}
-	withdrawnSum, err := s.storage.GetWithdrawnSumByUserId(ctx, userId)
+	withdrawnSum, err := s.storage.GetWithdrawnSumByUserID(ctx, userID)
 	if err != nil {
 		logger.Log.Errorf("ошибка получения суммы списаных баллов: %s", err.Error())
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
 		return
 	}
 
-	user, err := s.storage.GetUserById(ctx, userId)
+	user, err := s.storage.GetUserById(ctx, userID)
 
 	if err != nil {
-		logger.Log.Errorf("ошибка получения пользователя: %s", err.Error())
+		logger.Log.Errorf("ошибка получения пользователя %d: %s", userID, err.Error())
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
 		return
 	}
@@ -56,7 +56,7 @@ func (s *Server) getUserBalanceHandler(ctx *fasthttp.RequestCtx) {
 
 func (s *Server) withdrawFromBalanceHandler(ctx *fasthttp.RequestCtx) {
 	contentType := ctx.Request.Header.ContentType()
-	userId, ok := ctx.UserValue("userId").(int64)
+	userID, ok := ctx.UserValue("userID").(int64)
 	if !ok {
 		logger.Log.Errorf("ошибка получения пользователя из контекста")
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
@@ -95,7 +95,7 @@ func (s *Server) withdrawFromBalanceHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	user, err := s.storage.GetUserById(ctx, userId)
+	user, err := s.storage.GetUserById(ctx, userID)
 
 	if err != nil {
 		logger.Log.Errorf("ошибка получения пользователя: %s", err.Error())
@@ -109,7 +109,7 @@ func (s *Server) withdrawFromBalanceHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	err = s.storage.AddWithdrawal(ctx, model.Withdrawal{Order: orderNumber, Sum: reqData.Withdrawn, UserId: userId})
+	err = s.storage.AddWithdrawal(ctx, model.Withdrawal{Order: orderNumber, Sum: reqData.Withdrawn, UserID: userID})
 
 	if err != nil {
 		logger.Log.Errorf("ошибка добавления списания средств: %s", err.Error())
@@ -124,17 +124,17 @@ func (s *Server) withdrawFromBalanceHandler(ctx *fasthttp.RequestCtx) {
 
 func (s *Server) getUserWithdrawalsHandler(ctx *fasthttp.RequestCtx) {
 
-	userId, ok := ctx.UserValue("userId").(int64)
+	userID, ok := ctx.UserValue("userID").(int64)
 	if !ok {
 		logger.Log.Errorf("ошибка получения пользователя из контекста")
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
 		return
 	}
 
-	withdrawals, err := s.storage.GetAllWithdrawalsByUserId(ctx, userId)
+	withdrawals, err := s.storage.GetAllWithdrawalsByUserID(ctx, userID)
 
 	if err != nil {
-		logger.Log.Errorf("ошибка получения выводов средств, пользователь: %d", userId)
+		logger.Log.Errorf("ошибка получения выводов средств, пользователь: %d", userID)
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
 		return
 	}
@@ -144,10 +144,10 @@ func (s *Server) getUserWithdrawalsHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	var outputData []model.WithdrawalJson
+	var outputData []model.WithdrawalJSON
 
 	for _, w := range withdrawals {
-		outputData = append(outputData, model.WithdrawalJson{
+		outputData = append(outputData, model.WithdrawalJSON{
 			Order:       w.Order,
 			Sum:         w.Sum,
 			ProcessedAt: w.ProcessedAt.Format(time.RFC3339),

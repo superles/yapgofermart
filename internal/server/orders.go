@@ -12,17 +12,17 @@ import (
 	"time"
 )
 
-type OrderJson struct {
-	Number     string `json:"number"`            // Номер заказа
-	Status     string `json:"status"`            // Статус заказа
-	Accrual    *int   `json:"accrual,omitempty"` // Рассчитанные баллы к начислению
-	UploadedAt string `json:"uploaded_at"`       // Дата загрузки товара
+type OrderJSON struct {
+	Number     string   `json:"number"`            // Номер заказа
+	Status     string   `json:"status"`            // Статус заказа
+	Accrual    *float64 `json:"accrual,omitempty"` // Рассчитанные баллы к начислению
+	UploadedAt string   `json:"uploaded_at"`       // Дата загрузки товара
 }
 
 func (s *Server) createOrderHandlerOld(ctx *fasthttp.RequestCtx) {
 
 	contentType := ctx.Request.Header.ContentType()
-	userId, ok := ctx.UserValue("userId").(int64)
+	userID, ok := ctx.UserValue("userID").(int64)
 	if !ok {
 		logger.Log.Errorf("ошибка получения пользователя из контекста")
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
@@ -63,7 +63,7 @@ func (s *Server) createOrderHandlerOld(ctx *fasthttp.RequestCtx) {
 	}
 
 	if len(newOrder.Number) == 0 {
-		if err := s.storage.AddOrder(ctx, model.Order{Number: strBody, Status: model.OrderStatusNew, UserId: userId}); err != nil {
+		if err := s.storage.AddOrder(ctx, model.Order{Number: strBody, Status: model.OrderStatusNew, UserID: userID}); err != nil {
 			logger.Log.Errorf("ошибка добавления заказа: %s", err.Error())
 			ctx.Error("ошибка добавления заказа", fasthttp.StatusInternalServerError)
 		}
@@ -72,7 +72,7 @@ func (s *Server) createOrderHandlerOld(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if newOrder.UserId == userId {
+	if newOrder.UserID == userID {
 		ctx.SetBodyString("номер заказа уже был загружен этим пользователем")
 		logger.Log.Infof("номер заказа уже был загружен этим пользователем: %s", strBody)
 		ctx.SetStatusCode(fasthttp.StatusOK)
@@ -87,7 +87,7 @@ func (s *Server) createOrderHandlerOld(ctx *fasthttp.RequestCtx) {
 func (s *Server) createOrderHandler(ctx *fasthttp.RequestCtx) {
 
 	contentType := ctx.Request.Header.ContentType()
-	userId, ok := ctx.UserValue("userId").(int64)
+	userID, ok := ctx.UserValue("userID").(int64)
 	if !ok {
 		logger.Log.Errorf("ошибка получения пользователя из контекста")
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
@@ -119,7 +119,7 @@ func (s *Server) createOrderHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	err := s.storage.CreateNewOrder(ctx, orderNumber, userId)
+	err := s.storage.CreateNewOrder(ctx, orderNumber, userID)
 
 	if err == nil {
 		ctx.Response.SetStatusCode(202)
@@ -143,13 +143,13 @@ func (s *Server) createOrderHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func (s *Server) getOrdersHandler(ctx *fasthttp.RequestCtx) {
-	userId, ok := ctx.UserValue("userId").(int64)
+	userID, ok := ctx.UserValue("userID").(int64)
 	if !ok {
 		logger.Log.Errorf("ошибка получения пользователя из контекста")
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
 		return
 	}
-	orders, err := s.storage.GetAllOrdersByUser(ctx, userId)
+	orders, err := s.storage.GetAllOrdersByUser(ctx, userID)
 	if err != nil && !errors.Is(err, errs.ErrNoRows) {
 		logger.Log.Errorf("ошибка запроса заказов %s", err.Error())
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
@@ -161,9 +161,9 @@ func (s *Server) getOrdersHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	jsonOrders := make([]OrderJson, len(orders))
+	jsonOrders := make([]OrderJSON, len(orders))
 	for i, order := range orders {
-		jsonOrders[i] = OrderJson{
+		jsonOrders[i] = OrderJSON{
 			Number:     order.Number,
 			Status:     order.Status,
 			Accrual:    order.Accrual,

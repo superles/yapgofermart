@@ -9,7 +9,7 @@ import (
 )
 
 type Client struct {
-	BaseUrl string
+	BaseURL string
 }
 
 func (c Client) Get(number string) (Accrual, error) {
@@ -17,7 +17,7 @@ func (c Client) Get(number string) (Accrual, error) {
 	var orderData Accrual
 
 	// Формирование URL для GET-запроса
-	url := fmt.Sprintf("%s/api/orders/%s", c.BaseUrl, number)
+	url := fmt.Sprintf("%s/api/orders/%s", c.BaseURL, number)
 
 	// Выполнение GET-запроса
 	response, err := http.Get(url)
