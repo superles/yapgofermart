@@ -36,23 +36,6 @@ func New(cfg *config.Config, s storage.Storage) *Server {
 	return &Server{cfg, s}
 }
 
-type User struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	// Другие поля пользователя
-}
-
-type Order struct {
-	ID    int   `json:"id"`
-	Items []int `json:"items"`
-	// Другие поля заказа
-}
-
-type Balance struct {
-	Amount float64 `json:"amount"`
-	// Другие поля баланса
-}
-
 func withCompressMiddleware(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return fasthttp.CompressHandler(h)
 }

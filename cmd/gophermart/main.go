@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/superles/yapgofermart/internal/config"
 	"github.com/superles/yapgofermart/internal/server"
 	"github.com/superles/yapgofermart/internal/storage"
@@ -12,12 +11,6 @@ import (
 )
 
 func main() {
-	log.Println("start app")
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered in main", r)
-		}
-	}()
 	cfg, err := config.New()
 	if err != nil {
 		log.Fatal("ошибка инициализации конфига: ", err.Error())
@@ -42,7 +35,6 @@ func main() {
 	if store, err = pgstorage.NewStorage(cfg.DatabaseDsn); err != nil {
 		log.Fatal("ошибка инициализации бд", err.Error())
 	}
-	logger.Log.Error("конфиг:", cfg)
 	srv := server.New(cfg, store)
 	appContext := context.Background()
 	err = srv.Run(appContext)
