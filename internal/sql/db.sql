@@ -1,12 +1,12 @@
 
 create table if not exists public.users
 (
-    name          varchar(50)  not null,
-    password_hash varchar(255) not null,
-    role          varchar(50),
     id            integer generated always as identity
         constraint users_pk
             primary key,
+    name          varchar(50)  not null,
+    password_hash varchar(255) not null,
+    role          varchar(50),
     balance       double precision
 );
 
