@@ -96,10 +96,10 @@ func (s *Server) Run(ctx context.Context) error {
 
 	go service.Run(appContext, 5*time.Second)
 
-	select {
-	case <-appContext.Done():
-		fmt.Println(appContext.Err()) // prints "context canceled"
-		stop()
+	<-appContext.Done()
+
+	if appContext.Err() != nil {
+		logger.Log.Errorf("ошибка контескта: %s", appContext.Err())
 	}
 
 	if err := srv.Shutdown(); err != nil {
