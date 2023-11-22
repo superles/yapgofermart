@@ -3,6 +3,8 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	errs "github.com/superles/yapgofermart/internal/errors"
 	"github.com/superles/yapgofermart/internal/model"
 	"github.com/superles/yapgofermart/internal/utils/logger"
 	"github.com/superles/yapgofermart/internal/utils/luna"
@@ -54,7 +56,7 @@ func (s *Server) getUserBalanceHandler(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func (s *Server) withdrawFromBalanceHandler(ctx *fasthttp.RequestCtx) {
+func (s *Server) withdrawFromBalanceHandlerOld(ctx *fasthttp.RequestCtx) {
 	contentType := ctx.Request.Header.ContentType()
 	userID, ok := ctx.UserValue("userID").(int64)
 	if !ok {
@@ -120,6 +122,66 @@ func (s *Server) withdrawFromBalanceHandler(ctx *fasthttp.RequestCtx) {
 	ctx.SetBodyString("списано успешно")
 	logger.Log.Infof("успешно списано: заказ - %s, сумма - %f", orderNumber, reqData.Withdrawn)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func (s *Server) withdrawFromBalanceHandler(ctx *fasthttp.RequestCtx) {
+	contentType := ctx.Request.Header.ContentType()
+	userID, ok := ctx.UserValue("userID").(int64)
+	if !ok {
+		logger.Log.Errorf("ошибка получения пользователя из контекста")
+		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
+		return
+	}
+	if !bytes.Contains(contentType, []byte("application/json")) {
+		logger.Log.Errorf("неверный формат запроса: %s", string(contentType))
+		ctx.Error("неверный формат запроса", fasthttp.StatusBadRequest)
+		return
+	}
+
+	var reqData balanceWithdrawRequest
+
+	err := json.Unmarshal(ctx.Request.Body(), &reqData)
+
+	if err != nil {
+		logger.Log.Errorf("ошибка декода запроса: %s", err.Error())
+		ctx.Error("неверный формат запроса", fasthttp.StatusBadRequest)
+		return
+	}
+
+	orderNumber := reqData.Order
+
+	if len(orderNumber) > 255 {
+		logger.Log.Errorf("номер заказа превысил длину: %s", orderNumber)
+		ctx.Error("неверный формат номера заказа", fasthttp.StatusUnprocessableEntity)
+		return
+	}
+	if isLunaValid, err := luna.Valid(orderNumber); err != nil {
+		logger.Log.Errorf("номер не соответствует алгоритму luna %s", err.Error())
+		ctx.Error("неверный формат номера заказа", fasthttp.StatusUnprocessableEntity)
+		return
+	} else if !isLunaValid {
+		logger.Log.Errorf("номер не соответствует алгоритму luna: %s", orderNumber)
+		ctx.Error("неверный формат номера заказа", fasthttp.StatusUnprocessableEntity)
+		return
+	}
+
+	err = s.storage.CreateWithdrawal(ctx, orderNumber, reqData.Withdrawn, userID)
+
+	if err == nil {
+		ctx.SetBodyString("списано успешно")
+		logger.Log.Infof("успешно списано: заказ - %s, сумма - %f", orderNumber, reqData.Withdrawn)
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		return
+	}
+
+	if errors.Is(err, errs.ErrWithdrawalNotEnoughBalance) {
+		logger.Log.Error("на счету недостаточно средств")
+		ctx.Error("на счету недостаточно средств", fasthttp.StatusPaymentRequired)
+		return
+	}
+
+	logger.Log.Errorf("ошибка добавления списания средств: %s", err.Error())
+	ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
 }
 
 func (s *Server) getUserWithdrawalsHandler(ctx *fasthttp.RequestCtx) {
