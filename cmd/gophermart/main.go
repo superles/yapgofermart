@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/superles/yapgofermart/internal/config"
 	"github.com/superles/yapgofermart/internal/server"
 	"github.com/superles/yapgofermart/internal/storage"
@@ -12,6 +13,11 @@ import (
 
 func main() {
 	log.Println("start app")
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in main", r)
+		}
+	}()
 	cfg, err := config.New()
 	if err != nil {
 		log.Fatal("ошибка инициализации конфига: ", err.Error())
