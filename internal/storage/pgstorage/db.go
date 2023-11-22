@@ -2,8 +2,8 @@ package pgstorage
 
 import (
 	"context"
+	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/superles/yapgofermart/internal/utils/logger"
 )
 
 type PgStorage struct {
@@ -28,12 +28,15 @@ func NewStorage(dsn string) (*PgStorage, error) {
 		return nil, err
 	}
 
-	checkTables(ctx, db)
+	err = checkTables(ctx, db)
+	if err != nil {
+		return nil, err
+	}
 
 	return &PgStorage{db}, nil
 }
 
-func checkTables(ctx context.Context, db *pgxpool.Pool) {
+func checkTables(ctx context.Context, db *pgxpool.Pool) error {
 	_, err := db.Exec(ctx, `
 create table if not exists public.users
 (
@@ -170,6 +173,7 @@ execute procedure public.update_balance_and_users_form_withdrawals();
 
 `)
 	if err != nil {
-		logger.Log.Errorf("update_balance_and_users create error: %s", err.Error())
+		return fmt.Errorf("update_balance_and_users create error: %w", err)
 	}
+	return nil
 }
