@@ -19,11 +19,10 @@ func (c Client) Get(number string) (Accrual, error) {
 
 	// Выполнение GET-запроса
 	response, err := http.Get(url)
-	defer response.Body.Close()
 	if err != nil {
 		return orderData, fmt.Errorf("ошибка при выполнении GET-запроса: %w", err)
 	}
-
+	defer response.Body.Close()
 	if response.StatusCode == http.StatusTooManyRequests {
 		return orderData, ErrTooManyRequests
 	}
