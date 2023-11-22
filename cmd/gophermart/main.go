@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+	log.Println("start app")
 	cfg, err := config.New()
 	if err != nil {
 		log.Fatal("ошибка инициализации конфига: ", err.Error())
