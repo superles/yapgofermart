@@ -3,6 +3,7 @@ package pgstorage
 import (
 	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/superles/yapgofermart/internal/utils/logger"
 )
 
 type PgStorage struct {
@@ -33,42 +34,19 @@ func NewStorage(dsn string) (*PgStorage, error) {
 }
 
 func checkTables(ctx context.Context, db *pgxpool.Pool) {
-	db.QueryRow(ctx, `create table if not exists withdrawals
+	_, err := db.Exec(ctx, `
+create table if not exists public.users
 (
-    id              integer generated always as identity
-        constraint balance_pk
-            primary key,
-    order_number    varchar(255)                           not null,
-    user_id         integer                                not null,
-    sum             double precision,
-    processed_at    timestamp with time zone default now() not null
-);`)
-
-	db.QueryRow(ctx, `create table if not exists public.balance
-(
-    id              integer generated always as identity
-        constraint balance_pk
-            primary key,
-    order_number    varchar(255)                           not null,
-    user_id         integer                                not null,
-    current_balance double precision,
-    accrual         double precision,
-    withdrawal        double precision,
-    processed_at    timestamp with time zone default now() not null
-);`)
-
-	db.QueryRow(ctx, `create table if not exists public.users
-(
-    id            integer generated always as identity
-        constraint users_pk
-            primary key,
     name          varchar(50)  not null,
     password_hash varchar(255) not null,
     role          varchar(50),
+    id            integer generated always as identity
+        constraint users_pk
+            primary key,
     balance       double precision
-);`)
+);
 
-	db.QueryRow(ctx, `create table if not exists orders
+create table if not exists public.orders
 (
     number           varchar(255)                           not null
         constraint orders_pk
@@ -79,17 +57,42 @@ func checkTables(ctx context.Context, db *pgxpool.Pool) {
     accrual_check_at timestamp with time zone,
     accrual_status   varchar(50),
     user_id          integer                                not null
-);`)
+);
 
-	db.QueryRow(ctx, `create or replace function check_and_insert_order(inputNumber varchar(255), inputStatus varchar(50), inputUserID int) returns integer
+create table if not exists public.balance
+(
+    id              integer generated always as identity
+        constraint balance_pk
+            primary key,
+    order_number    varchar(255)                           not null,
+    user_id         integer                                not null,
+    current_balance double precision,
+    accrual         double precision,
+    withdrawal      double precision,
+    processed_at    timestamp with time zone default now() not null
+);
+
+create table if not exists public.withdrawals
+(
+    id           integer generated always as identity
+        constraint withdrawal_pk
+            primary key,
+    order_number varchar(255)                           not null,
+    user_id      integer                                not null,
+    sum          double precision,
+    processed_at timestamp with time zone default now() not null
+);
+
+create or replace function public.check_and_insert_order(inputnumber character varying, inputstatus character varying,
+                                                         inputuserid integer) returns integer
     language plpgsql
 as
 $$
 DECLARE
     resultCode INT;
 BEGIN
-    IF EXISTS (SELECT 1 FROM orders WHERE number = inputNumber) THEN
-        IF EXISTS (SELECT 1 FROM orders WHERE number = inputNumber AND user_id = inputUserID) THEN
+    IF EXISTS(SELECT 1 FROM orders WHERE number = inputNumber) THEN
+        IF EXISTS(SELECT 1 FROM orders WHERE number = inputNumber AND user_id = inputUserID) THEN
             resultCode := 1; -- Если существует и пользователь совпадает
         ELSE
             resultCode := 2; -- Если существует и пользователь не совпадает
@@ -102,10 +105,12 @@ BEGIN
 
     RETURN resultCode;
 END;
-$$;`)
+$$;
 
-	db.QueryRow(ctx, `CREATE OR REPLACE FUNCTION update_balance_and_users()
-    RETURNS TRIGGER AS $$
+create or replace function public.update_balance_and_users() returns trigger
+    language plpgsql
+as
+$$
 DECLARE
     sum double precision;
 BEGIN
@@ -116,22 +121,19 @@ BEGIN
         INSERT INTO balance (order_number, user_id, accrual, current_balance)
         VALUES (NEW.number, NEW.user_id, NEW.accrual, sum);
 
-        -- Обновляем таблицу users
+-- Обновляем таблицу users
         UPDATE users
         SET balance = sum
         WHERE id = NEW.user_id;
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-CREATE OR REPLACE TRIGGER orders_update_trigger
-    AFTER UPDATE OF status, accrual OR INSERT ON orders
-    FOR EACH ROW
-EXECUTE FUNCTION update_balance_and_users();`)
-
-	db.QueryRow(ctx, `CREATE OR REPLACE FUNCTION update_balance_and_users_form_withdrawals()
-    RETURNS TRIGGER AS $$
+create or replace function public.update_balance_and_users_form_withdrawals() returns trigger
+    language plpgsql
+as
+$$
 DECLARE
     sum double precision;
 BEGIN
@@ -151,10 +153,23 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-CREATE OR REPLACE TRIGGER withdrawals_update_trigger
-    AFTER INSERT ON withdrawals
-    FOR EACH ROW
-EXECUTE FUNCTION update_balance_and_users_form_withdrawals();`)
+create or replace trigger orders_update_trigger
+    after insert or update
+        of status, accrual
+    on public.orders
+    for each row
+execute procedure public.update_balance_and_users();
+
+create or replace trigger withdrawals_update_trigger
+    after insert
+    on public.withdrawals
+    for each row
+execute procedure public.update_balance_and_users_form_withdrawals();
+
+`)
+	if err != nil {
+		logger.Log.Errorf("update_balance_and_users create error: %s", err.Error())
+	}
 }
