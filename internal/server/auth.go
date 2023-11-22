@@ -132,7 +132,7 @@ func (s *Server) loginUserHandler(ctx *fasthttp.RequestCtx) {
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
 		return
 	} else if !isValid {
-		logger.Log.Errorf("неверный пароль %s", err.Error())
+		logger.Log.Errorf("неверный пароль")
 		ctx.Error("неверная пара логин/пароль", fasthttp.StatusUnauthorized)
 		return
 	}

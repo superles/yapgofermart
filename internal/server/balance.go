@@ -34,7 +34,7 @@ func (s *Server) getUserBalanceHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	user, err := s.storage.GetUserById(ctx, userID)
+	user, err := s.storage.GetUserByID(ctx, userID)
 
 	if err != nil {
 		logger.Log.Errorf("ошибка получения пользователя %d: %s", userID, err.Error())
@@ -95,7 +95,7 @@ func (s *Server) withdrawFromBalanceHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	user, err := s.storage.GetUserById(ctx, userID)
+	user, err := s.storage.GetUserByID(ctx, userID)
 
 	if err != nil {
 		logger.Log.Errorf("ошибка получения пользователя: %s", err.Error())

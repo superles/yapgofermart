@@ -7,7 +7,7 @@ import (
 	"github.com/superles/yapgofermart/internal/model"
 )
 
-func (s *PgStorage) GetUserById(ctx context.Context, id int64) (model.User, error) {
+func (s *PgStorage) GetUserByID(ctx context.Context, id int64) (model.User, error) {
 
 	item := model.User{}
 
