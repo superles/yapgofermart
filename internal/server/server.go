@@ -78,11 +78,14 @@ func (s *Server) Run(ctx context.Context) error {
 
 	router := s.newRouter()
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	appContext, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT)
+	defer stop()
+
+	srv := fasthttp.Server{}
+	srv.Handler = router.Handler
 
 	go func() {
-		if err := fasthttp.ListenAndServe(s.cfg.Endpoint, router.Handler); err != nil {
+		if err := srv.ListenAndServe(s.cfg.Endpoint); err != nil {
 			logger.Log.Error(fmt.Sprintf("не могу запустить сервер %s: %s", s.cfg.Endpoint, err))
 		}
 	}()
@@ -91,15 +94,19 @@ func (s *Server) Run(ctx context.Context) error {
 
 	service := accrual.Service{Client: accrual.Client{BaseURL: s.cfg.AccrualSystemAddress}, Storage: s.storage}
 
-	go service.Run(ctx, 5*time.Second)
+	go service.Run(appContext, 5*time.Second)
 
-	logger.Log.Info("Server Started")
-	<-done
-	logger.Log.Info("Server Stopped")
-	//
-	//if err := srv.Shutdown(ctx); err != nil {
-	//	return err
-	//}
+	select {
+	case <-appContext.Done():
+		fmt.Println(appContext.Err()) // prints "context canceled"
+		stop()
+	}
+
+	if err := srv.Shutdown(); err != nil {
+		return err
+	}
+
+	logger.Log.Info("Server graceful shutdown")
 
 	return nil
 }
