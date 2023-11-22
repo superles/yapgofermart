@@ -35,7 +35,7 @@ func main() {
 	if store, err = pgstorage.NewStorage(cfg.DatabaseDsn); err != nil {
 		log.Fatal("ошибка инициализации бд", err.Error())
 	}
-	logger.Log.Info("конфиг:", cfg)
+	logger.Log.Error("конфиг:", cfg)
 	srv := server.New(cfg, store)
 	appContext := context.Background()
 	err = srv.Run(appContext)

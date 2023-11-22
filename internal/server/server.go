@@ -9,7 +9,6 @@ import (
 	"github.com/superles/yapgofermart/internal/storage"
 	"github.com/superles/yapgofermart/internal/utils/logger"
 	"github.com/valyala/fasthttp"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -83,8 +82,8 @@ func (s *Server) Run(ctx context.Context) error {
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		if err := fasthttp.ListenAndServe(s.cfg.Endpoint, router.Handler); err != http.ErrServerClosed {
-			logger.Log.Error(fmt.Sprintf("не могу запустить сервер: %s", err))
+		if err := fasthttp.ListenAndServe(s.cfg.Endpoint, router.Handler); err != nil {
+			logger.Log.Error(fmt.Sprintf("не могу запустить сервер %s: %s", s.cfg.Endpoint, err))
 		}
 	}()
 
