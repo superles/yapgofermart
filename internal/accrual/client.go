@@ -3,8 +3,6 @@ package accrual
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/superles/yapgofermart/internal/utils/logger"
-	"io"
 	"net/http"
 )
 
@@ -21,15 +19,10 @@ func (c Client) Get(number string) (Accrual, error) {
 
 	// Выполнение GET-запроса
 	response, err := http.Get(url)
+	defer response.Body.Close()
 	if err != nil {
 		return orderData, fmt.Errorf("ошибка при выполнении GET-запроса: %w", err)
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			logger.Log.Error("ошибка закрытия body", err)
-		}
-	}(response.Body)
 
 	if response.StatusCode == http.StatusTooManyRequests {
 		return orderData, ErrTooManyRequests

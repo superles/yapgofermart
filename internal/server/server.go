@@ -82,13 +82,13 @@ func (s *Server) Run(ctx context.Context) error {
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	logger.Log.Info(fmt.Sprintf("Server started at %s", s.cfg.Endpoint))
-
 	go func() {
 		if err := fasthttp.ListenAndServe(s.cfg.Endpoint, router.Handler); err != http.ErrServerClosed {
 			logger.Log.Error(fmt.Sprintf("не могу запустить сервер: %s", err))
 		}
 	}()
+
+	logger.Log.Info(fmt.Sprintf("Server started at %s", s.cfg.Endpoint))
 
 	service := accrual.Service{Client: accrual.Client{BaseURL: s.cfg.AccrualSystemAddress}, Storage: s.storage}
 

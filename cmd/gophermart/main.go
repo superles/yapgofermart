@@ -18,11 +18,22 @@ func main() {
 	if err = logger.Initialize(cfg.LogLevel); err != nil {
 		log.Fatal("ошибка инициализации logger: ", err.Error())
 	}
+
+	if len(cfg.Endpoint) == 0 {
+		log.Fatal("не настроен адрес запуска сервера")
+	}
+
+	if len(cfg.AccrualSystemAddress) == 0 {
+		log.Fatal("не настроен адрес системы расчёта")
+	}
+
+	if len(cfg.DatabaseDsn) == 0 {
+		log.Fatal("не настроена бд")
+	}
+
 	var store storage.Storage
-	if len(cfg.DatabaseDsn) != 0 {
-		if store, err = pgstorage.NewStorage(cfg.DatabaseDsn); err != nil {
-			log.Fatal("ошибка инициализации бд", err.Error())
-		}
+	if store, err = pgstorage.NewStorage(cfg.DatabaseDsn); err != nil {
+		log.Fatal("ошибка инициализации бд", err.Error())
 	}
 	srv := server.New(cfg, store)
 	appContext := context.Background()
