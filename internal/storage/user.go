@@ -7,6 +7,6 @@ import (
 
 type UserStorage interface {
 	GetUserByName(ctx context.Context, name string) (model.User, error)
-	GetUserById(ctx context.Context, id int64) (model.User, error)
-	RegisterUser(ctx context.Context, user model.User) error
+	GetUserByID(ctx context.Context, id int64) (model.User, error)
+	RegisterUser(ctx context.Context, user model.User) (model.User, error)
 }

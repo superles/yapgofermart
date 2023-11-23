@@ -45,10 +45,6 @@ func ValidatePassword(hashedPassword, password string) (bool, error) {
 		return false, err
 	}
 	salt := decoded[:saltSize]
-
-	if err != nil {
-		return false, err
-	}
 	expectedHash := HashPassword(password, salt)
 	return hashedPassword == expectedHash, nil
 }

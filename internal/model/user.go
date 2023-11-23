@@ -10,7 +10,7 @@ const (
 )
 
 type User struct {
-	Id           int64
+	ID           int64
 	Name         string  // Имя пользователя
 	PasswordHash string  // Хеш пароля пользователя
 	Role         string  // Роль пользователя

@@ -9,7 +9,6 @@ import (
 	"github.com/superles/yapgofermart/internal/storage"
 	"github.com/superles/yapgofermart/internal/utils/logger"
 	"github.com/valyala/fasthttp"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -37,23 +36,6 @@ func New(cfg *config.Config, s storage.Storage) *Server {
 	return &Server{cfg, s}
 }
 
-type User struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	// Другие поля пользователя
-}
-
-type Order struct {
-	ID    int   `json:"id"`
-	Items []int `json:"items"`
-	// Другие поля заказа
-}
-
-type Balance struct {
-	Amount float64 `json:"amount"`
-	// Другие поля баланса
-}
-
 func withCompressMiddleware(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return fasthttp.CompressHandler(h)
 }
@@ -79,28 +61,35 @@ func (s *Server) Run(ctx context.Context) error {
 
 	router := s.newRouter()
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	appContext, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT)
+	defer stop()
 
-	logger.Log.Info(fmt.Sprintf("Server started at %s", s.cfg.Endpoint))
+	srv := fasthttp.Server{}
+	srv.Handler = router.Handler
 
 	go func() {
-		if err := fasthttp.ListenAndServe(s.cfg.Endpoint, router.Handler); err != http.ErrServerClosed {
-			logger.Log.Error(fmt.Sprintf("не могу запустить сервер: %s", err))
+		if err := srv.ListenAndServe(s.cfg.Endpoint); err != nil {
+			logger.Log.Error(fmt.Sprintf("не могу запустить сервер %s: %s", s.cfg.Endpoint, err))
 		}
 	}()
 
-	service := accrual.Service{Client: accrual.Client{BaseUrl: s.cfg.AccrualSystemAddress}, Storage: s.storage}
+	logger.Log.Info(fmt.Sprintf("Server started at %s", s.cfg.Endpoint))
 
-	go service.Run(ctx, 5*time.Second)
+	service := accrual.Service{Client: accrual.Client{BaseURL: s.cfg.AccrualSystemAddress}, Storage: s.storage}
 
-	logger.Log.Info("Server Started")
-	<-done
-	logger.Log.Info("Server Stopped")
-	//
-	//if err := srv.Shutdown(ctx); err != nil {
-	//	return err
-	//}
+	go service.Run(appContext, 5*time.Second)
+
+	<-appContext.Done()
+
+	if appContext.Err() != nil {
+		logger.Log.Errorf("ошибка контескта: %s", appContext.Err())
+	}
+
+	if err := srv.Shutdown(); err != nil {
+		return err
+	}
+
+	logger.Log.Info("Server graceful shutdown")
 
 	return nil
 }

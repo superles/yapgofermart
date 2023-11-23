@@ -27,7 +27,7 @@ type Credentials struct {
 
 // JWTClaims представляет структуру для хранения данных в JWT токене
 type JWTClaims struct {
-	UserId   int64  `json:"id"`
+	UserID   int64  `json:"id"`
 	Username string `json:"name"`
 	Role     string `json:"role"`
 	jwt.StandardClaims
@@ -65,7 +65,8 @@ func (s *Server) registerUserHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	user = model.User{Name: authUser.Username, PasswordHash: password, Role: defaultRole}
-	err = s.storage.RegisterUser(ctx, user)
+	var regUser model.User
+	regUser, err = s.storage.RegisterUser(ctx, user)
 
 	if err != nil {
 		logger.Log.Errorf("ошибка регистрации пользователя %s", err.Error())
@@ -76,8 +77,9 @@ func (s *Server) registerUserHandler(ctx *fasthttp.RequestCtx) {
 	expirationTime := jwt.TimeFunc().Add(jswTokenDuration) // Время жизни токена
 
 	claims := &JWTClaims{
-		Username: authUser.Username,
-		Role:     user.Role,
+		UserID:   regUser.ID,
+		Username: regUser.Name,
+		Role:     regUser.Role,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},
@@ -130,21 +132,15 @@ func (s *Server) loginUserHandler(ctx *fasthttp.RequestCtx) {
 		ctx.Error("ошибка сервера", fasthttp.StatusInternalServerError)
 		return
 	} else if !isValid {
-		logger.Log.Errorf("неверный пароль %s", err.Error())
+		logger.Log.Errorf("неверный пароль")
 		ctx.Error("неверная пара логин/пароль", fasthttp.StatusUnauthorized)
-		return
-	}
-
-	if err != nil {
-		logger.Log.Errorf("ошибка регистрации пользователя %s", err.Error())
-		ctx.Error("ошибка регистрации пользователя", fasthttp.StatusInternalServerError)
 		return
 	}
 
 	expirationTime := jwt.TimeFunc().Add(jswTokenDuration) // Время жизни токена
 
 	claims := &JWTClaims{
-		UserId:   user.Id,
+		UserID:   user.ID,
 		Username: user.Name,
 		Role:     user.Role,
 		StandardClaims: jwt.StandardClaims{
@@ -194,7 +190,7 @@ func (s *Server) authMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHa
 		}
 
 		// Передача информации о пользователе и роли в контексте
-		ctx.SetUserValue("userId", claims.UserId)
+		ctx.SetUserValue("userID", claims.UserID)
 		ctx.SetUserValue("userName", claims.Username)
 		ctx.SetUserValue("userRole", claims.Role)
 

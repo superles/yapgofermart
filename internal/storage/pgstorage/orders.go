@@ -22,7 +22,7 @@ func (s *PgStorage) GetOrder(ctx context.Context, number string) (model.Order, e
 		return item, errors.New("объект row пустой")
 	}
 
-	if err := row.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserId); err != nil {
+	if err := row.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return item, errs.ErrNoRows
 		}
@@ -55,8 +55,8 @@ func (s *PgStorage) GetAllOrders(ctx context.Context, opts ...storage.OrderFindO
 		whereClause = append(whereClause, fmt.Sprintf("status IN (%s)", strings.Join(statusesPlaceholder, ",")))
 	}
 
-	if queryOptions.UserId != 0 {
-		params = append(params, queryOptions.UserId)
+	if queryOptions.UserID != 0 {
+		params = append(params, queryOptions.UserID)
 		whereClause = append(whereClause, fmt.Sprintf("user_id = $%d", len(params)))
 	}
 
@@ -96,7 +96,7 @@ func (s *PgStorage) GetAllOrders(ctx context.Context, opts ...storage.OrderFindO
 	}
 	for rows.Next() {
 		var item model.Order
-		err = rows.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserId)
+		err = rows.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserID)
 		if err != nil {
 			return items, err
 		}
@@ -106,9 +106,9 @@ func (s *PgStorage) GetAllOrders(ctx context.Context, opts ...storage.OrderFindO
 	return items, nil
 }
 
-func (s *PgStorage) GetAllOrdersByUser(ctx context.Context, userId int64) ([]model.Order, error) {
+func (s *PgStorage) GetAllOrdersByUser(ctx context.Context, userID int64) ([]model.Order, error) {
 	var items []model.Order
-	rows, err := s.db.Query(ctx, `select number, status, accrual, uploaded_at, accrual_check_at, accrual_status, user_id from orders where user_id=$1 order by uploaded_at desc`, userId)
+	rows, err := s.db.Query(ctx, `select number, status, accrual, uploaded_at, accrual_check_at, accrual_status, user_id from orders where user_id=$1 order by uploaded_at desc`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (s *PgStorage) GetAllOrdersByUser(ctx context.Context, userId int64) ([]mod
 	}
 	for rows.Next() {
 		var item model.Order
-		err = rows.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserId)
+		err = rows.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserID)
 		if err != nil {
 			return items, err
 		}
@@ -127,8 +127,8 @@ func (s *PgStorage) GetAllOrdersByUser(ctx context.Context, userId int64) ([]mod
 	return items, nil
 }
 
-func (s *PgStorage) CreateNewOrder(ctx context.Context, number string, userId int64) error {
-	row := s.db.QueryRow(ctx, "select check_and_insert_order($1, $2, $3)", number, model.OrderStatusNew, userId)
+func (s *PgStorage) CreateNewOrder(ctx context.Context, number string, userID int64) error {
+	row := s.db.QueryRow(ctx, "select check_and_insert_order($1, $2, $3)", number, model.OrderStatusNew, userID)
 
 	if row == nil {
 		return errs.ErrNoRows
@@ -156,7 +156,7 @@ func (s *PgStorage) CreateNewOrder(ctx context.Context, number string, userId in
 }
 
 func (s *PgStorage) AddOrder(ctx context.Context, order model.Order) error {
-	_, err := s.db.Exec(ctx, "insert into orders (number, status, user_id) VALUES ($1, $2, $3)", order.Number, order.Status, order.UserId)
+	_, err := s.db.Exec(ctx, "insert into orders (number, status, user_id) VALUES ($1, $2, $3)", order.Number, order.Status, order.UserID)
 	return err
 }
 

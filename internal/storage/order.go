@@ -29,7 +29,7 @@ type OrderFindOptions struct {
 	Status         []string
 	OrderBy        string
 	OrderDirection string
-	UserId         int64
+	UserID         int64
 	Limit          int64
 	Offset         int64
 }
@@ -42,9 +42,9 @@ func WithFindNumber(number string) OrderFindOption {
 	}
 }
 
-func WithFindUser(userId int64) OrderFindOption {
+func WithFindUser(userID int64) OrderFindOption {
 	return func(o *OrderFindOptions) {
-		o.UserId = userId
+		o.UserID = userID
 	}
 }
 
@@ -78,9 +78,9 @@ func WithFindOffset(offset int64) OrderFindOption {
 
 type OrderStorage interface {
 	GetAllOrders(ctx context.Context, options ...OrderFindOption) ([]model.Order, error)
-	GetAllOrdersByUser(ctx context.Context, userId int64) ([]model.Order, error)
+	GetAllOrdersByUser(ctx context.Context, userID int64) ([]model.Order, error)
 	GetOrder(ctx context.Context, number string) (model.Order, error)
 	AddOrder(ctx context.Context, order model.Order) error
-	CreateNewOrder(ctx context.Context, number string, userId int64) error
+	CreateNewOrder(ctx context.Context, number string, userID int64) error
 	UpdateOrder(ctx context.Context, number string, options ...OrderUpdateOption) error
 }
