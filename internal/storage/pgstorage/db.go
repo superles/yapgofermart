@@ -38,14 +38,14 @@ func NewStorage(dsn string) (*PgStorage, error) {
 }
 
 func checkTables(ctx context.Context, db *pgxpool.Pool) error {
-	sql, err := os.ReadFile("internal/sql/db.sql")
+	sql, err := os.ReadFile("internal/storage/pgstorage/db.sql")
 	if err != nil {
 		return err
 	}
 	code := string(sql)
 	_, err = db.Exec(ctx, code)
 	if err != nil {
-		return fmt.Errorf("update_balance_and_users create error: %w", err)
+		return fmt.Errorf("create tables error: %w", err)
 	}
 	return nil
 }
