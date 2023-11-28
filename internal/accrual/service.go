@@ -32,10 +32,6 @@ func (s *Service) generator(ctx context.Context, ch chan<- model.Order, reportIn
 				continue
 			}
 			for _, order := range orders {
-				if err != nil {
-					logger.Log.Errorf("update orders status to processing error: %s", err.Error())
-					continue
-				}
 				ch <- order
 			}
 

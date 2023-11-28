@@ -12,11 +12,11 @@ type Client interface {
 	Get(number string) (Accrual, error)
 }
 
-type ClientHttp struct {
+type ClientHTTP struct {
 	BaseURL string
 }
 
-func (c ClientHttp) Get(number string) (Accrual, error) {
+func (c ClientHTTP) Get(number string) (Accrual, error) {
 
 	var orderData Accrual
 
