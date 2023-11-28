@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
+	errs "github.com/superles/yapgofermart/internal/errors"
 	"github.com/superles/yapgofermart/internal/model"
 	"github.com/superles/yapgofermart/internal/utils/logger"
 	"strings"
@@ -52,7 +52,7 @@ func (s *Server) registerUserHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !errors.Is(err, errs.ErrNoRows) {
 		logger.Log.Errorf("ошибка запроса пользователя %s", err.Error())
 		ctx.Error("ошибка сервера", fasthttp.StatusConflict)
 		return
@@ -117,7 +117,7 @@ func (s *Server) loginUserHandler(ctx *fasthttp.RequestCtx) {
 	var user model.User
 	user, err = s.storage.GetUserByName(ctx, authUser.Username)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, errs.ErrNoRows) {
 			logger.Log.Errorf("пользователь не найден %s", err.Error())
 			ctx.Error("неверная пара логин/пароль", fasthttp.StatusUnauthorized)
 		} else {

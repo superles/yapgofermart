@@ -8,9 +8,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	errs "github.com/superles/yapgofermart/internal/errors"
 	"github.com/superles/yapgofermart/internal/model"
-	"github.com/superles/yapgofermart/internal/storage"
 	"github.com/superles/yapgofermart/internal/utils/logger"
-	"strings"
 )
 
 func (s *PgStorage) GetOrder(ctx context.Context, number string) (model.Order, error) {
@@ -31,80 +29,6 @@ func (s *PgStorage) GetOrder(ctx context.Context, number string) (model.Order, e
 	}
 
 	return item, nil
-}
-
-func (s *PgStorage) GetAllOrders(ctx context.Context, opts ...storage.OrderFindOption) ([]model.Order, error) {
-
-	var items []model.Order
-	queryOptions := &storage.OrderFindOptions{}
-	for _, opt := range opts {
-		opt(queryOptions)
-	}
-
-	query := `select number, status, accrual, uploaded_at, user_id from orders`
-
-	var whereClause []string
-	var params []interface{}
-
-	// Формирование WHERE части запроса на основе опций
-	if len(queryOptions.Status) > 0 {
-		statusesPlaceholder := make([]string, len(queryOptions.Status))
-		for i, status := range queryOptions.Status {
-			params = append(params, status)
-			statusesPlaceholder[i] = fmt.Sprintf("$%d", len(params))
-		}
-		whereClause = append(whereClause, fmt.Sprintf("status IN (%s)", strings.Join(statusesPlaceholder, ",")))
-	}
-
-	if queryOptions.UserID != 0 {
-		params = append(params, queryOptions.UserID)
-		whereClause = append(whereClause, fmt.Sprintf("user_id = $%d", len(params)))
-	}
-
-	if len(queryOptions.Number) != 0 {
-		params = append(params, queryOptions.Number)
-		whereClause = append(whereClause, fmt.Sprintf("number = $%d", len(params)))
-	}
-
-	if len(whereClause) > 0 {
-		query += " WHERE " + strings.Join(whereClause, " AND ")
-	}
-
-	if queryOptions.OrderBy != "" {
-		if len(queryOptions.OrderDirection) == 0 {
-			queryOptions.OrderDirection = "asc"
-		}
-		direction := strings.ToLower(queryOptions.OrderDirection)
-		if direction == "asc" || direction == "desc" {
-			query += fmt.Sprintf(" ORDER BY %s %s", pgx.Identifier{queryOptions.OrderBy}.Sanitize(), direction)
-		}
-	}
-
-	if queryOptions.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT %d", queryOptions.Limit)
-	}
-
-	if queryOptions.Offset > 0 {
-		query += fmt.Sprintf(" OFFSET %d", queryOptions.Offset)
-	}
-
-	rows, err := s.db.Query(ctx, query, params...)
-	if err != nil {
-		return nil, err
-	}
-	if rows.Err() != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var item model.Order
-		err = rows.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.UserID)
-		if err != nil {
-			return items, err
-		}
-		items = append(items, item)
-	}
-
-	return items, nil
 }
 
 func (s *PgStorage) GetAllOrdersByUser(ctx context.Context, userID int64) ([]model.Order, error) {
@@ -187,42 +111,6 @@ func (s *PgStorage) CreateNewOrder(ctx context.Context, number string, userID in
 	}
 
 	return tx.Commit(ctx)
-}
-
-func (s *PgStorage) UpdateOrder(ctx context.Context, number string, options ...storage.OrderUpdateOption) error {
-
-	if len(options) == 0 {
-		return nil
-	}
-
-	setOptions := &storage.OrderUpdateOptions{}
-
-	for _, opt := range options {
-		opt(setOptions)
-	}
-
-	var setClause []string
-	var params []interface{}
-
-	if len(setOptions.Status) != 0 {
-		params = append(params, setOptions.Status)
-		setClause = append(setClause, fmt.Sprintf("status = $%d", len(params)))
-	}
-
-	if setOptions.Accrual > 0 {
-		params = append(params, setOptions.Accrual)
-		setClause = append(setClause, fmt.Sprintf("accrual = $%d", len(params)))
-	}
-
-	query := "update orders"
-
-	if len(setClause) > 0 {
-		query += " SET " + strings.Join(setClause, " , ")
-	}
-	params = append(params, number)
-	query += fmt.Sprintf(" where number = $%d", len(params))
-	_, err := s.db.Exec(ctx, query, params...)
-	return err
 }
 
 func (s *PgStorage) UpdateOrderStatus(ctx context.Context, number string, status string) error {
