@@ -12,11 +12,9 @@ const (
 )
 
 type Order struct {
-	Number         string     `json:"number"`            // Номер заказа
-	Status         string     `json:"status"`            // Статус заказа
-	Accrual        *float64   `json:"accrual,omitempty"` // Рассчитанные баллы к начислению
-	UploadedAt     time.Time  `json:"uploaded_at"`       // Дата загрузки товара
-	AccrualCheckAt *time.Time // Время последней проверки
-	AccrualStatus  *string    // Статус последней проверки бонусов
-	UserID         int64      // UserID - id пользователя заказа
+	Number     string    `json:"number"`            // Номер заказа
+	Status     string    `json:"status"`            // Статус заказа
+	Accrual    *float64  `json:"accrual,omitempty"` // Рассчитанные баллы к начислению
+	UploadedAt time.Time `json:"uploaded_at"`       // Дата загрузки товара
+	UserID     int64     // UserID - id пользователя заказа
 }

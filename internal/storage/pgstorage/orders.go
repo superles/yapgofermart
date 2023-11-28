@@ -17,13 +17,13 @@ func (s *PgStorage) GetOrder(ctx context.Context, number string) (model.Order, e
 
 	item := model.Order{}
 
-	row := s.db.QueryRow(ctx, `select number, status, accrual, uploaded_at, accrual_check_at, accrual_status, user_id from orders where number=$1`, number)
+	row := s.db.QueryRow(ctx, `select number, status, accrual, uploaded_at, user_id from orders where number=$1`, number)
 
 	if row == nil {
 		return item, errors.New("объект row пустой")
 	}
 
-	if err := row.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserID); err != nil {
+	if err := row.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.UserID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return item, errs.ErrNoRows
 		}
@@ -41,7 +41,7 @@ func (s *PgStorage) GetAllOrders(ctx context.Context, opts ...storage.OrderFindO
 		opt(queryOptions)
 	}
 
-	query := `select number, status, accrual, uploaded_at, accrual_check_at, accrual_status, user_id from orders`
+	query := `select number, status, accrual, uploaded_at, user_id from orders`
 
 	var whereClause []string
 	var params []interface{}
@@ -97,7 +97,7 @@ func (s *PgStorage) GetAllOrders(ctx context.Context, opts ...storage.OrderFindO
 	}
 	for rows.Next() {
 		var item model.Order
-		err = rows.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserID)
+		err = rows.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.UserID)
 		if err != nil {
 			return items, err
 		}
@@ -109,7 +109,7 @@ func (s *PgStorage) GetAllOrders(ctx context.Context, opts ...storage.OrderFindO
 
 func (s *PgStorage) GetAllOrdersByUser(ctx context.Context, userID int64) ([]model.Order, error) {
 	var items []model.Order
-	rows, err := s.db.Query(ctx, `select number, status, accrual, uploaded_at, accrual_check_at, accrual_status, user_id from orders where user_id=$1 order by uploaded_at desc`, userID)
+	rows, err := s.db.Query(ctx, `select number, status, accrual, uploaded_at, user_id from orders where user_id=$1 order by uploaded_at desc`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func (s *PgStorage) GetAllOrdersByUser(ctx context.Context, userID int64) ([]mod
 	}
 	for rows.Next() {
 		var item model.Order
-		err = rows.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserID)
+		err = rows.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.UserID)
 		if err != nil {
 			return items, err
 		}
@@ -131,7 +131,7 @@ func (s *PgStorage) GetAllOrdersByUser(ctx context.Context, userID int64) ([]mod
 // GetAllNewAndProcessingOrders получение всех заказов со статусами NEW и PROCESSING для запроса/повторного запроса в системе лояльности(accrual)
 func (s *PgStorage) GetAllNewAndProcessingOrders(ctx context.Context) ([]model.Order, error) {
 	var items []model.Order
-	rows, err := s.db.Query(ctx, `select number, status, accrual, uploaded_at, accrual_check_at, accrual_status, user_id from orders where status=$1 or status=$2 order by uploaded_at asc`, model.OrderStatusNew, model.OrderStatusProcessing)
+	rows, err := s.db.Query(ctx, `select number, status, accrual, uploaded_at, user_id from orders where status=$1 or status=$2 order by uploaded_at asc`, model.OrderStatusNew, model.OrderStatusProcessing)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (s *PgStorage) GetAllNewAndProcessingOrders(ctx context.Context) ([]model.O
 	}
 	for rows.Next() {
 		var item model.Order
-		err = rows.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserID)
+		err = rows.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.UserID)
 		if err != nil {
 			return items, err
 		}
@@ -148,34 +148,6 @@ func (s *PgStorage) GetAllNewAndProcessingOrders(ctx context.Context) ([]model.O
 	}
 
 	return items, nil
-}
-
-func (s *PgStorage) CreateNewOrderOld(ctx context.Context, number string, userID int64) error {
-	row := s.db.QueryRow(ctx, "select check_and_insert_order($1, $2, $3)", number, model.OrderStatusNew, userID)
-
-	if row == nil {
-		return errs.ErrNoRows
-	}
-
-	var returnVal int64
-
-	if err := row.Scan(&returnVal); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return errs.ErrNoRows
-		}
-		return err
-	}
-
-	switch returnVal {
-	case 1:
-		//Если существует и пользователь совпадает
-		return errs.ErrExistsSameUser
-	case 2:
-		//Если существует и пользователь не совпадает
-		return errs.ErrExistsAnotherUser
-	default:
-		return nil
-	}
 }
 
 func (s *PgStorage) CreateNewOrder(ctx context.Context, number string, userID int64) error {
@@ -194,11 +166,11 @@ func (s *PgStorage) CreateNewOrder(ctx context.Context, number string, userID in
 	}(tx, ctx)
 
 	// Выбираем заказы с определенным статусом для обновления
-	row := tx.QueryRow(ctx, "SELECT number, status, accrual, uploaded_at, accrual_check_at, accrual_status, user_id FROM orders WHERE number = $1", number)
+	row := tx.QueryRow(ctx, "SELECT number, status, accrual, uploaded_at, user_id FROM orders WHERE number = $1", number)
 
 	item := model.Order{}
 
-	if err := row.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserID); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err := row.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.UserID); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return err
 	}
 
@@ -215,11 +187,6 @@ func (s *PgStorage) CreateNewOrder(ctx context.Context, number string, userID in
 	}
 
 	return tx.Commit(ctx)
-}
-
-func (s *PgStorage) AddOrder(ctx context.Context, order model.Order) error {
-	_, err := s.db.Exec(ctx, "insert into orders (number, status, user_id) VALUES ($1, $2, $3)", order.Number, order.Status, order.UserID)
-	return err
 }
 
 func (s *PgStorage) UpdateOrder(ctx context.Context, number string, options ...storage.OrderUpdateOption) error {
@@ -281,11 +248,11 @@ func (s *PgStorage) SetOrderProcessedAndUserBalance(ctx context.Context, number 
 	}(tx, ctx)
 
 	// выбираем заказ для обновления, select for update skip locked - для невозможности параллельной обработки ни горутиной ни другим инстансом
-	row := tx.QueryRow(ctx, "SELECT number, status, accrual, uploaded_at, accrual_check_at, accrual_status, user_id FROM orders WHERE number = $1 FOR UPDATE SKIP LOCKED", number)
+	row := tx.QueryRow(ctx, "SELECT number, status, accrual, uploaded_at, user_id FROM orders WHERE number = $1 FOR UPDATE SKIP LOCKED", number)
 
 	item := model.Order{}
 
-	if err := row.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.AccrualCheckAt, &item.AccrualStatus, &item.UserID); err != nil {
+	if err := row.Scan(&item.Number, &item.Status, &item.Accrual, &item.UploadedAt, &item.UserID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errs.ErrNoRows
 		}

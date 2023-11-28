@@ -32,8 +32,7 @@ func (s *PgStorage) GetAllWithdrawalsByUserID(ctx context.Context, id int64) ([]
 	return items, nil
 }
 
-// CreateWithdrawal создание записи в withdrawal таблице при условии, что пользователю достаточно баланса,
-// создание записи изменения баланса + обновление баланса у пользователя
+// CreateWithdrawal создание записи в withdrawal таблице при условии, что пользователю достаточно баланса + обновление баланса у пользователя
 func (s *PgStorage) CreateWithdrawal(ctx context.Context, number string, withdraw float64, userID int64) error {
 
 	if withdraw <= 0 {
@@ -82,12 +81,6 @@ func (s *PgStorage) CreateWithdrawal(ctx context.Context, number string, withdra
 	}
 
 	return tx.Commit(ctx)
-}
-
-// AddWithdrawal добавление строчки баланса, для работы с триггером(старое)
-func (s *PgStorage) AddWithdrawal(ctx context.Context, withdrawal model.Withdrawal) error {
-	_, err := s.db.Exec(ctx, "insert into withdrawals (order_number, user_id, sum) VALUES ($1, $2, $3)", withdrawal.Order, withdrawal.UserID, withdrawal.Sum)
-	return err
 }
 
 func (s *PgStorage) GetWithdrawnSumByUserID(ctx context.Context, userID int64) (float64, error) {
