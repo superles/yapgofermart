@@ -20,7 +20,7 @@ var (
 	instance Config
 )
 
-func toURL(hostWithPort string) string {
+func toURL(hostWithPort string) (string, error) {
 	var fullURL string
 
 	// Проверка наличия протокола в строке, добавление http:// в случае его отсутствия
@@ -31,12 +31,12 @@ func toURL(hostWithPort string) string {
 	// Попытка разбора строки в объект URL
 	parsedURL, err := url.Parse(hostWithPort)
 	if err != nil {
-		return "" // Возвращаем пустую строку в случае ошибки парсинга
+		return "", err // Возвращаем пустую строку в случае ошибки парсинга
 	}
 
 	// Получение строки URL
 	fullURL = parsedURL.String()
-	return fullURL
+	return fullURL, nil
 }
 
 func New() (*Config, error) {
@@ -62,10 +62,13 @@ func New() (*Config, error) {
 			instance.LogLevel = flagConfig.LogLevel
 		}
 
+		var accrualSystemAddress string
 		if len(envConfig.AccrualSystemAddress) > 0 {
-			instance.AccrualSystemAddress = toURL(envConfig.AccrualSystemAddress)
+			accrualSystemAddress, err = toURL(envConfig.AccrualSystemAddress)
+			instance.AccrualSystemAddress = accrualSystemAddress
 		} else {
-			instance.AccrualSystemAddress = toURL(flagConfig.AccrualSystemAddress)
+			accrualSystemAddress, err = toURL(flagConfig.AccrualSystemAddress)
+			instance.AccrualSystemAddress = accrualSystemAddress
 		}
 
 		if len(envConfig.DatabaseDsn) > 0 {

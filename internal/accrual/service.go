@@ -2,7 +2,6 @@ package accrual
 
 import (
 	"context"
-	"errors"
 	"github.com/superles/yapgofermart/internal/model"
 	"github.com/superles/yapgofermart/internal/storage"
 	"github.com/superles/yapgofermart/internal/utils/logger"
@@ -16,13 +15,6 @@ type Service struct {
 	Client  Client
 }
 
-type response struct {
-	Status   int
-	Error    error
-	WorkerID int
-	Accrual  Accrual
-}
-
 func (s *Service) generator(ctx context.Context, ch chan<- model.Order, reportInterval time.Duration) {
 	ticker := time.NewTicker(reportInterval)
 	defer func() {
@@ -34,12 +26,16 @@ func (s *Service) generator(ctx context.Context, ch chan<- model.Order, reportIn
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			orders, err := s.Storage.GetAllOrders(ctx, storage.WithFindStatus(model.OrderStatusNew, model.OrderStatusProcessing), storage.WithFindSortBy("uploaded_at", "asc"))
+			orders, err := s.Storage.GetAllNewAndProcessingOrders(ctx)
 			if err != nil {
 				logger.Log.Errorf("generator GetAll error: %s", err.Error())
 				continue
 			}
 			for _, order := range orders {
+				if err != nil {
+					logger.Log.Errorf("update orders status to processing error: %s", err.Error())
+					continue
+				}
 				ch <- order
 			}
 
@@ -47,77 +43,45 @@ func (s *Service) generator(ctx context.Context, ch chan<- model.Order, reportIn
 	}
 }
 
-func (s *Service) dispatcher(ctx context.Context, input <-chan model.Order, out chan<- model.Order) {
+func (s *Service) worker(id int, ctx context.Context, input <-chan model.Order) {
 	for {
 		select {
 		case <-ctx.Done():
 			return // Выход из горутины при отмене контекста
 		case order, ok := <-input:
 			if !ok {
-				logger.Log.Debug("dispatcher input channel closed")
-				return
-			}
-
-			out <- order
-		}
-	}
-}
-
-func (s *Service) worker(id int, ctx context.Context, input <-chan model.Order, results chan<- response) {
-	for {
-		select {
-		case <-ctx.Done():
-			return // Выход из горутины при отмене контекста
-		case order, ok := <-input:
-			if !ok {
-				results <- response{WorkerID: id, Error: errors.New("input channel closed")}
+				logger.Log.Error("input channel closed")
 				return
 			}
 
 			accrual, err := s.Client.Get(order.Number)
 
 			if err != nil {
-				results <- response{WorkerID: id, Error: err}
-				logger.Log.Errorf("ошибка запроса сумы начисления: %s", err.Error())
+				logger.Log.Errorf("woker #%d, ошибка запроса сумы начисления: %s", id, err.Error())
 				continue
 			}
 
-			results <- response{WorkerID: id, Error: err, Accrual: accrual}
-		}
-	}
-}
+			var status string
 
-func (s *Service) resultProcessing(ctx context.Context, resultChan <-chan response) {
-	for resp := range resultChan {
-
-		if resp.Error != nil {
-			logger.Log.Errorf("worker error %d: %s", resp.WorkerID, resp.Error.Error())
-			continue
-		}
-
-		accrual := resp.Accrual
-
-		var err error
-		var status string
-
-		switch accrual.Status {
-		case StatusRegistered, StatusProcessing:
-			status = model.OrderStatusProcessing
-			err = s.Storage.UpdateOrder(ctx, resp.Accrual.Number, storage.WithUpdateStatus(status))
-		case StatusInvalid:
-			status = model.OrderStatusInvalid
-			err = s.Storage.UpdateOrder(ctx, resp.Accrual.Number, storage.WithUpdateStatus(status))
-		case StatusProcessed:
-			status = model.OrderStatusProcessed
-			options := []storage.OrderUpdateOption{storage.WithUpdateStatus(status)}
-			if accrual.Accrual != nil && *accrual.Accrual > 0 {
-				options = append(options, storage.WithUpdateAccrual(*accrual.Accrual))
+			switch accrual.Status {
+			case StatusRegistered, StatusProcessing:
+				status = model.OrderStatusProcessing
+				err = s.Storage.UpdateOrderStatus(ctx, accrual.Number, status)
+			case StatusInvalid:
+				status = model.OrderStatusInvalid
+				err = s.Storage.UpdateOrderStatus(ctx, accrual.Number, status)
+			case StatusProcessed:
+				status = model.OrderStatusProcessed
+				if accrual.Accrual != nil && *accrual.Accrual > 0 {
+					err = s.Storage.SetOrderProcessedAndUserBalance(ctx, accrual.Number, *accrual.Accrual)
+				} else {
+					err = s.Storage.UpdateOrderStatus(ctx, accrual.Number, status)
+				}
 			}
-			err = s.Storage.UpdateOrder(ctx, resp.Accrual.Number, options...)
-		}
 
-		if err != nil {
-			logger.Log.Errorf("ошибка установки статуса %s заказа %s: %s", status, resp.Accrual.Number, err.Error())
+			if err != nil {
+				logger.Log.Errorf("woker #%d, ошибка установки статуса %s заказа %s: %s", id, status, accrual.Number, err.Error())
+			}
 		}
 	}
 }
@@ -125,15 +89,12 @@ func (s *Service) resultProcessing(ctx context.Context, resultChan <-chan respon
 func (s *Service) Run(ctx context.Context, reportInterval time.Duration) {
 	var wg sync.WaitGroup
 	rateLimit := runtime.GOMAXPROCS(0)
-	requestChan := make(chan model.Order)
+	requestChan := make(chan model.Order, rateLimit)
 	go s.generator(ctx, requestChan, reportInterval)
-	dispatcherChan := make(chan model.Order, rateLimit)
-	go s.dispatcher(ctx, requestChan, dispatcherChan)
-	resultChan := make(chan response, rateLimit)
-	for i := 1; i <= int(rateLimit); i++ {
+	for i := 1; i <= rateLimit; i++ {
 		go func(workerID int) {
 			defer wg.Done()
-			s.worker(workerID, ctx, dispatcherChan, resultChan)
+			s.worker(workerID, ctx, requestChan)
 		}(i)
 	}
 	wg.Add(rateLimit)
@@ -141,9 +102,5 @@ func (s *Service) Run(ctx context.Context, reportInterval time.Duration) {
 		wg.Wait()
 		logger.Log.Debug("free all channels")
 		close(requestChan)
-		close(dispatcherChan)
-		close(resultChan)
 	}()
-
-	go s.resultProcessing(ctx, resultChan)
 }

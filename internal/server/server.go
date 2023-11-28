@@ -75,9 +75,9 @@ func (s *Server) Run(ctx context.Context) error {
 
 	logger.Log.Info(fmt.Sprintf("Server started at %s", s.cfg.Endpoint))
 
-	service := accrual.Service{Client: accrual.Client{BaseURL: s.cfg.AccrualSystemAddress}, Storage: s.storage}
+	service := accrual.Service{Client: accrual.ClientHttp{BaseURL: s.cfg.AccrualSystemAddress}, Storage: s.storage}
 
-	go service.Run(appContext, 5*time.Second)
+	service.Run(appContext, 5*time.Second)
 
 	<-appContext.Done()
 

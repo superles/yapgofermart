@@ -78,9 +78,12 @@ func WithFindOffset(offset int64) OrderFindOption {
 
 type OrderStorage interface {
 	GetAllOrders(ctx context.Context, options ...OrderFindOption) ([]model.Order, error)
+	GetAllNewAndProcessingOrders(ctx context.Context) ([]model.Order, error)
 	GetAllOrdersByUser(ctx context.Context, userID int64) ([]model.Order, error)
 	GetOrder(ctx context.Context, number string) (model.Order, error)
 	AddOrder(ctx context.Context, order model.Order) error
 	CreateNewOrder(ctx context.Context, number string, userID int64) error
 	UpdateOrder(ctx context.Context, number string, options ...OrderUpdateOption) error
+	UpdateOrderStatus(ctx context.Context, number string, status string) error
+	SetOrderProcessedAndUserBalance(ctx context.Context, number string, sum float64) error
 }
