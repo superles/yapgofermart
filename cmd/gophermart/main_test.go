@@ -195,7 +195,11 @@ func TestEndToEnd(t *testing.T) {
 				}
 			}
 			res, err := client.Do(req)
-			assert.NoError(t, err)
+			if err != nil {
+				assert.NoError(t, err)
+				return
+			}
+			defer res.Body.Close()
 			err = tt.checkFunc(res)
 			assert.NoError(t, err)
 		})
