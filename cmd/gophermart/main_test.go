@@ -128,7 +128,7 @@ func TestEndToEnd(t *testing.T) {
 			},
 			checkFunc: func(res *http.Response) error {
 				if res.StatusCode != http.StatusOK {
-					return errors.New(fmt.Sprintf("неожиданный статус, ожидается: %d, получен: %d", http.StatusOK, res.StatusCode))
+					return fmt.Errorf("неожиданный статус, ожидается: %d, получен: %d", http.StatusOK, res.StatusCode)
 				}
 				_, err := store.GetUserByName(appContext, "user")
 				return err
@@ -149,7 +149,7 @@ func TestEndToEnd(t *testing.T) {
 			},
 			checkFunc: func(res *http.Response) error {
 				if res.StatusCode != http.StatusOK {
-					return errors.New(fmt.Sprintf("неожиданный статус, ожидается: %d, получен: %d", http.StatusOK, res.StatusCode))
+					return fmt.Errorf("неожиданный статус, ожидается: %d, получен: %d", http.StatusOK, res.StatusCode)
 				}
 				return nil
 			},
@@ -169,7 +169,7 @@ func TestEndToEnd(t *testing.T) {
 			},
 			checkFunc: func(res *http.Response) error {
 				if res.StatusCode != http.StatusAccepted {
-					return errors.New(fmt.Sprintf("неожиданный статус, ожидается: %d, получен: %d", http.StatusOK, res.StatusCode))
+					return fmt.Errorf("неожиданный статус, ожидается: %d, получен: %d", http.StatusOK, res.StatusCode)
 				}
 				time.Sleep(5 * time.Second)
 				usr, err := store.GetUserByName(appContext, testUser.Name)
