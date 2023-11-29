@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/superles/yapgofermart/internal/accrual"
 	"github.com/superles/yapgofermart/internal/config"
 	"github.com/superles/yapgofermart/internal/server"
 	"github.com/superles/yapgofermart/internal/storage"
@@ -35,7 +36,10 @@ func main() {
 	if store, err = pgstorage.NewStorage(cfg.DatabaseDsn); err != nil {
 		log.Fatal("ошибка инициализации бд", err.Error())
 	}
-	srv := server.New(cfg, store)
+
+	service := accrual.Service{Client: accrual.NewHTTPClient(cfg.AccrualSystemAddress), Storage: store}
+
+	srv := server.New(cfg, store, service)
 	appContext := context.Background()
 	err = srv.Run(appContext)
 	if err != nil {

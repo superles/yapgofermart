@@ -29,7 +29,7 @@ func Test_parseEnv(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if len(test.cfg.Endpoint) > 0 {
-				if err := os.Setenv("ADDRESS", test.cfg.Endpoint); err != nil {
+				if err := os.Setenv("RUN_ADDRESS", test.cfg.Endpoint); err != nil {
 					t.Errorf("ошибка setenv %s", err.Error())
 				}
 			}

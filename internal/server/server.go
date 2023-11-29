@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
 type Middleware func(h fasthttp.RequestHandler) fasthttp.RequestHandler
@@ -30,10 +29,11 @@ func NewMiddleware(middlewares []Middleware) func(fasthttp.RequestHandler) fasth
 type Server struct {
 	cfg     *config.Config
 	storage storage.Storage
+	service accrual.Service
 }
 
-func New(cfg *config.Config, s storage.Storage) *Server {
-	return &Server{cfg, s}
+func New(cfg *config.Config, s storage.Storage, service accrual.Service) *Server {
+	return &Server{cfg, s, service}
 }
 
 func withCompressMiddleware(h fasthttp.RequestHandler) fasthttp.RequestHandler {
@@ -75,9 +75,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	logger.Log.Info(fmt.Sprintf("Server started at %s", s.cfg.Endpoint))
 
-	service := accrual.Service{Client: accrual.NewHTTPClient(s.cfg.AccrualSystemAddress), Storage: s.storage}
-
-	service.Run(appContext, 5*time.Second)
+	s.service.Run(appContext)
 
 	<-appContext.Done()
 

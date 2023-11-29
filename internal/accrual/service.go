@@ -12,12 +12,13 @@ import (
 )
 
 type Service struct {
-	Storage storage.Storage
-	Client  Client
+	Storage      storage.Storage
+	Client       Client
+	PoolInterval time.Duration
 }
 
-func (s *Service) generator(ctx context.Context, ch chan<- model.Order, reportInterval time.Duration) {
-	ticker := time.NewTicker(reportInterval)
+func (s *Service) generator(ctx context.Context, ch chan<- model.Order) {
+	ticker := time.NewTicker(s.PoolInterval)
 	defer func() {
 		ticker.Stop()
 		logger.Log.Debug("stop generator ticker and close input channel")
@@ -90,11 +91,14 @@ func (s *Service) worker(id int, ctx context.Context, input <-chan model.Order) 
 	}
 }
 
-func (s *Service) Run(ctx context.Context, reportInterval time.Duration) {
+func (s *Service) Run(ctx context.Context) {
 	var wg sync.WaitGroup
 	rateLimit := runtime.GOMAXPROCS(0)
+	if s.PoolInterval == 0 {
+		s.PoolInterval = 5 * time.Second
+	}
 	requestChan := make(chan model.Order, rateLimit)
-	go s.generator(ctx, requestChan, reportInterval)
+	go s.generator(ctx, requestChan)
 	for i := 1; i <= rateLimit; i++ {
 		go func(workerID int) {
 			defer wg.Done()

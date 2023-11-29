@@ -79,25 +79,14 @@ func (s *Server) registerUserHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	expirationTime := jwt.TimeFunc().Add(jswTokenDuration) // Время жизни токена
-
-	claims := &JWTClaims{
-		UserID:   regUser.ID,
-		Username: regUser.Name,
-		Role:     regUser.Role,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString(s.cfg.SecretKeyBytes)
+	authToken, err := s.GetAuthToken(regUser)
 	if err != nil {
+		logger.Log.Errorf("ошибка генерации токена: %s", err.Error())
 		ctx.Error("Failed to generate token", fasthttp.StatusInternalServerError)
 		return
 	}
 
-	ctx.Response.Header.Set("Authorization", "Bearer "+signedToken)
+	ctx.Response.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authToken))
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
@@ -142,25 +131,14 @@ func (s *Server) loginUserHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	expirationTime := jwt.TimeFunc().Add(jswTokenDuration) // Время жизни токена
-
-	claims := &JWTClaims{
-		UserID:   user.ID,
-		Username: user.Name,
-		Role:     user.Role,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString(s.cfg.SecretKeyBytes)
+	authToken, err := s.GetAuthToken(user)
 	if err != nil {
+		logger.Log.Errorf("ошибка генерации токена: %s", err.Error())
 		ctx.Error("Failed to generate token", fasthttp.StatusInternalServerError)
 		return
 	}
 
-	ctx.Response.Header.Set("Authorization", "Bearer "+signedToken)
+	ctx.Response.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authToken))
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
