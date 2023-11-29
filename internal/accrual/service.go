@@ -2,6 +2,7 @@ package accrual
 
 import (
 	"context"
+	"fmt"
 	"github.com/superles/yapgofermart/internal/model"
 	"github.com/superles/yapgofermart/internal/storage"
 	"github.com/superles/yapgofermart/internal/utils/logger"
@@ -39,6 +40,38 @@ func (s *Service) generator(ctx context.Context, ch chan<- model.Order, reportIn
 	}
 }
 
+func (s *Service) ProcessOrder(ctx context.Context, order model.Order, id int) error {
+
+	accrual, err := s.Client.Get(order.Number)
+
+	if err != nil {
+		return fmt.Errorf("woker #%d, ошибка запроса сумы начисления: %s", id, err.Error())
+	}
+
+	var status string
+
+	switch accrual.Status {
+	case StatusRegistered, StatusProcessing:
+		status = model.OrderStatusProcessing
+		err = s.Storage.UpdateOrderStatus(ctx, accrual.Number, status)
+	case StatusInvalid:
+		status = model.OrderStatusInvalid
+		err = s.Storage.UpdateOrderStatus(ctx, accrual.Number, status)
+	case StatusProcessed:
+		status = model.OrderStatusProcessed
+		if accrual.Accrual != nil && *accrual.Accrual > 0 {
+			err = s.Storage.SetOrderProcessedAndUserBalance(ctx, accrual.Number, *accrual.Accrual)
+		} else {
+			err = s.Storage.UpdateOrderStatus(ctx, accrual.Number, status)
+		}
+	}
+
+	if err != nil {
+		logger.Log.Errorf("woker #%d, ошибка установки статуса %s заказа %s: %s", id, status, accrual.Number, err.Error())
+	}
+	return nil
+}
+
 func (s *Service) worker(id int, ctx context.Context, input <-chan model.Order) {
 	for {
 		select {
@@ -50,33 +83,8 @@ func (s *Service) worker(id int, ctx context.Context, input <-chan model.Order) 
 				return
 			}
 
-			accrual, err := s.Client.Get(order.Number)
-
-			if err != nil {
-				logger.Log.Errorf("woker #%d, ошибка запроса сумы начисления: %s", id, err.Error())
-				continue
-			}
-
-			var status string
-
-			switch accrual.Status {
-			case StatusRegistered, StatusProcessing:
-				status = model.OrderStatusProcessing
-				err = s.Storage.UpdateOrderStatus(ctx, accrual.Number, status)
-			case StatusInvalid:
-				status = model.OrderStatusInvalid
-				err = s.Storage.UpdateOrderStatus(ctx, accrual.Number, status)
-			case StatusProcessed:
-				status = model.OrderStatusProcessed
-				if accrual.Accrual != nil && *accrual.Accrual > 0 {
-					err = s.Storage.SetOrderProcessedAndUserBalance(ctx, accrual.Number, *accrual.Accrual)
-				} else {
-					err = s.Storage.UpdateOrderStatus(ctx, accrual.Number, status)
-				}
-			}
-
-			if err != nil {
-				logger.Log.Errorf("woker #%d, ошибка установки статуса %s заказа %s: %s", id, status, accrual.Number, err.Error())
+			if err := s.ProcessOrder(ctx, order, id); err != nil {
+				logger.Log.Error(err.Error())
 			}
 		}
 	}

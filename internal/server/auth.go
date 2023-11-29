@@ -58,6 +58,11 @@ func (s *Server) registerUserHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	if len(authUser.Username) == 0 || len(authUser.Password) == 0 {
+		ctx.Error("ошибка формата отправки", fasthttp.StatusBadRequest)
+		return
+	}
+
 	password, err := HashPasswordWithRandomSalt(authUser.Password)
 	if err != nil {
 		logger.Log.Errorf("ошибка хеша пароля пользователя %s", err.Error())
