@@ -17,13 +17,10 @@ func createRequestWithBody(body string) *fasthttp.RequestCtx {
 }
 
 func createRequestWithBodyAndContentType(body string, contentType string) *fasthttp.RequestCtx {
-	header := fasthttp.RequestHeader{}
-	header.SetContentType(contentType)
 	reqCtx := fasthttp.RequestCtx{
-		Request: fasthttp.Request{
-			Header: header,
-		},
+		Request: fasthttp.Request{},
 	}
+	reqCtx.Request.Header.SetContentType(contentType)
 	reqCtx.Request.SetBodyString(body)
 	return &reqCtx
 }

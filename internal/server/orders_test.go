@@ -46,12 +46,12 @@ func TestServer_createOrderHandler(t *testing.T) {
 
 	sum := float64(700)
 
-	client := accrual.ClientMock{Rules: map[string][]accrual.ClientMockResponse{
+	client := accrual.NewMockClient(map[string][]accrual.ClientMockResponse{
 		"123456789049": []accrual.ClientMockResponse{
 			{Accrual: accrual.Accrual{}, Error: accrual.ErrNotRegistered},
 			{Accrual: accrual.Accrual{Number: "123456789049", Status: accrual.StatusProcessed, Accrual: &sum}, Error: nil},
 		},
-	}}
+	})
 
 	service := accrual.Service{Client: client, Storage: s.storage}
 

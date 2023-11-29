@@ -10,16 +10,20 @@ type Client interface {
 	Get(number string) (Accrual, error)
 }
 
-type ClientHTTP struct {
-	BaseURL string
+func NewHTTPClient(baseUrl string) Client {
+	return clientHTTP{baseUrl}
 }
 
-func (c ClientHTTP) Get(number string) (Accrual, error) {
+type clientHTTP struct {
+	baseUrl string
+}
+
+func (c clientHTTP) Get(number string) (Accrual, error) {
 
 	var orderData Accrual
 
 	// Формирование URL для GET-запроса
-	url := fmt.Sprintf("%s/api/orders/%s", c.BaseURL, number)
+	url := fmt.Sprintf("%s/api/orders/%s", c.baseUrl, number)
 
 	// Выполнение GET-запроса
 	response, err := http.Get(url)
