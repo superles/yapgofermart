@@ -150,8 +150,9 @@ func (s *Server) authMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHa
 			ctx.Error("Authorization token is required", fasthttp.StatusUnauthorized)
 			return
 		}
-		if !strings.Contains(authHeader, "Bearer ") {
+		if !strings.Contains(authHeader, "Bearer ") || len(authHeader) <= len("Bearer ") {
 			ctx.Error("Authorization token is invalid", fasthttp.StatusUnauthorized)
+			return
 		}
 		tokenString := authHeader[len("Bearer "):]
 		token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {

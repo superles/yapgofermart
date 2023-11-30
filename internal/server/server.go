@@ -9,9 +9,7 @@ import (
 	"github.com/superles/yapgofermart/internal/storage"
 	"github.com/superles/yapgofermart/internal/utils/logger"
 	"github.com/valyala/fasthttp"
-	"os"
-	"os/signal"
-	"syscall"
+	"net"
 )
 
 type Middleware func(h fasthttp.RequestHandler) fasthttp.RequestHandler
@@ -57,39 +55,39 @@ func (s *Server) newRouter() *fastRouter.Router {
 	return router
 }
 
-func (s *Server) Run(ctx context.Context) error {
+func (s *Server) Run(appContext context.Context) error {
+
+	ln, err := net.Listen("tcp", s.cfg.Endpoint)
+
+	if err != nil {
+		return fmt.Errorf("адрес %s недоступен", s.cfg.Endpoint)
+	}
 
 	router := s.newRouter()
 
-	appContext, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT)
-	defer stop()
-
 	srv := fasthttp.Server{}
 	srv.Handler = router.Handler
-
-	go func() {
-		if err := srv.ListenAndServe(s.cfg.Endpoint); err != nil {
-			logger.Log.Error(fmt.Sprintf("не могу запустить сервер %s: %s", s.cfg.Endpoint, err))
-		}
-	}()
 
 	logger.Log.Info(fmt.Sprintf("Server started at %s", s.cfg.Endpoint))
 
 	s.service.Run(appContext)
 
-	<-appContext.Done()
+	go func() {
 
-	if appContext.Err() != nil {
-		logger.Log.Errorf("ошибка контескта: %s", appContext.Err())
-	}
+		<-appContext.Done()
 
-	if err := srv.Shutdown(); err != nil {
-		return err
-	}
+		if appContext.Err() != nil && appContext.Err() != context.Canceled {
+			logger.Log.Errorf("ошибка контескта: %s", appContext.Err())
+		}
 
-	logger.Log.Info("Server graceful shutdown")
+		if err := srv.ShutdownWithContext(appContext); err != nil && err != context.Canceled {
+			logger.Log.Errorf("fasthttp server shutdown error: %s", err.Error())
+		}
 
-	return nil
+		logger.Log.Debug("Server graceful shutdown")
+	}()
+
+	return srv.Serve(ln)
 }
 
 func pingHandler(ctx *fasthttp.RequestCtx) {

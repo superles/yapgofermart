@@ -9,6 +9,9 @@ import (
 	"github.com/superles/yapgofermart/internal/storage/pgstorage"
 	"github.com/superles/yapgofermart/internal/utils/logger"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -40,9 +43,14 @@ func main() {
 	service := accrual.Service{Client: accrual.NewHTTPClient(cfg.AccrualSystemAddress), Storage: store}
 
 	srv := server.New(cfg, store, service)
-	appContext := context.Background()
+	appContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT)
+	defer stop()
+
 	err = srv.Run(appContext)
 	if err != nil {
-		log.Fatal("ошибка инициализации сервера: ", err.Error())
+		log.Fatal("ошибка запуска сервера: ", err.Error())
 	}
+
+	logger.Log.Info("app graceful shutdown")
+
 }

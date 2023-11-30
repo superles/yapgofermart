@@ -77,6 +77,7 @@ func (s *Service) worker(id int, ctx context.Context, input <-chan model.Order) 
 	for {
 		select {
 		case <-ctx.Done():
+			logger.Log.Debugf("worker %d finished, context done", id)
 			return // Выход из горутины при отмене контекста
 		case order, ok := <-input:
 			if !ok {
