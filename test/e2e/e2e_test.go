@@ -101,7 +101,7 @@ func (suite *APITestSuite) initStorage() {
 }
 
 func (suite *APITestSuite) initService() {
-	suite.service = accrual.Service{Client: clientTest{}, Storage: suite.storage, PoolInterval: 1 * time.Second}
+	suite.service = accrual.Service{Client: clientTest{}, Storage: suite.storage, PoolInterval: 100 * time.Millisecond}
 }
 
 func (suite *APITestSuite) initServer() {
@@ -204,7 +204,7 @@ func (suite *APITestSuite) TestBalanceChangedAfterOrderCreate() {
 	var order model.Order
 	order, err = suite.storage.GetOrder(suite.appContext, orderNumber)
 	suite.Require().NoError(err, "ошибка проверки наличия пользователя в бд")
-	time.Sleep(3 * time.Second) // ожидание обработки сервиса
+	time.Sleep(1 * time.Second) // ожидание обработки сервиса
 	var orderOwner model.User
 	orderOwner, err = suite.storage.GetUserByID(suite.appContext, order.UserID)
 	suite.Require().NoError(err, "ошибка проверки наличия заказа в бд")
