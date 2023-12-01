@@ -1,0 +1,152 @@
+openapi: 3.0.0
+info:
+  title: gophermart
+  version: 1.0.0
+servers:
+  - url: 'http://localhost:8080'
+paths:
+  /api/user/login:
+    post:
+      tags:
+        - default
+      summary: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                login: user
+                password: pass
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/user/orders:
+    post:
+      tags:
+        - default
+      summary: orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example: '0012345678901234734'
+      parameters:
+        - name: Content-Type
+          in: header
+          schema:
+            type: string
+          example: text/plain
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: '{{Authorization}}'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+    get:
+      tags:
+        - default
+      summary: getOrders
+      parameters:
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: '{{Authorization}}'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/user/balance/withdraw:
+    post:
+      tags:
+        - default
+      summary: postBalanceWithdraw
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                order: '2377225624'
+                sum: 751
+      parameters:
+        - name: Content-Type
+          in: header
+          schema:
+            type: string
+          example: application/json
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: '{{Authorization}}'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/user/register:
+    post:
+      tags:
+        - default
+      summary: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                login: user2
+                password: pass
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/user/withdrawals:
+    get:
+      tags:
+        - default
+      summary: getWithdrawals
+      parameters:
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: '{{Authorization}}'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+  /api/user/balance:
+    get:
+      tags:
+        - default
+      summary: getBalance
+      parameters:
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+          example: '{{Authorization}}'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json: {}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
